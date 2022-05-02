@@ -374,14 +374,14 @@ class ChangelogCIPullRequest(ChangelogCIBase):
     def _get_changelog_line(self, file_type, item):
         """Generate each line of changelog"""
         if file_type == self.config.MARKDOWN_FILE:
-            changelog_line_template = "* [#{number}]({url}): {title}\n"
+            changelog_line_template = "* [#{number}]({url}): {title}. Body:\n\t{body}\n"
         else:
-            changelog_line_template = "* `#{number} <{url}>`__: {title}\n"
-
+            changelog_line_template = "* `#{number} <{url}>`__: {title}. Body:\n\t{body}\n"
         return changelog_line_template.format(
             number=item['number'],
             url=item['url'],
-            title=item['title']
+            title=item['title'],
+            body=item.get('body', "")
         )
 
     def get_changes_after_last_release(self):
