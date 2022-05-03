@@ -37,6 +37,7 @@ class ChangelogCIBase:
         event_path,
         pull_request_branch,
         base_branch,
+        target_version,
         token=None
     ):
         self.config = config
@@ -45,8 +46,9 @@ class ChangelogCIBase:
         self.event_path = event_path
         self.pull_request_branch = pull_request_branch
         self.base_branch = base_branch
-
+        self.target_version = target_version
         self.token = token
+        self.pr_number = None
 
     @staticmethod
     def _get_pull_request_title_and_number(event_path):
@@ -221,7 +223,7 @@ class ChangelogCIBase:
     def get_changes_after_last_release(self):
         return NotImplemented
 
-    def parse_changelog(self, file_type, changes, pr_number):
+    def parse_changelog(self, file_type, changes):
         return NotImplemented
 
     def run(self):
@@ -249,10 +251,9 @@ class ChangelogCIBase:
             print_message(msg, message_type='error')
             return
 
-        pull_request_number = None
 
         if self.event_name == self.PULL_REQUEST_EVENT:
-            _, pull_request_number = self._get_pull_request_title_and_number(event_path)
+            _, self.pr_number = self._get_pull_request_title_and_number(event_path)
 
         changes = self.get_changes_after_last_release()
 
@@ -262,8 +263,7 @@ class ChangelogCIBase:
 
         string_data = self.parse_changelog(
             self.config.changelog_file_type,
-            changes,
-            pull_request_number
+            changes
         )
         markdown_string_data = string_data
 
@@ -275,8 +275,7 @@ class ChangelogCIBase:
         ):
             markdown_string_data = self.parse_changelog(
                 self.config.MARKDOWN_FILE,
-                changes,
-                pull_request_number
+                changes
             )
 
         if self.config.commit_changelog:
@@ -395,11 +394,16 @@ class ChangelogCIPullRequest(ChangelogCIBase):
 
         return items
 
-    def parse_changelog(self, file_type, changes, pr_number):
+    def parse_changelog(self, file_type, changes):
         """Parse the pull requests data and return a string"""
         new_changes = copy.deepcopy(changes)
         new_changes = sorted(new_changes,key=lambda x: -x['number'])
-        header = f'Newest changes from PR: {pr_number}'
+        if self.target_version:
+            header = f"Version {self.target_version}"
+        elif self.pr_number:
+            header = f'Pull request: {self.pr_number}'
+        else:
+            header = "Newest changes"
 
         if file_type == self.config.MARKDOWN_FILE:
             string_data = f'# {header}\n\n'
@@ -799,6 +803,7 @@ if __name__ == '__main__':
     # User inputs from workflow
     changelog_filename = os.environ['INPUT_CHANGELOG_FILENAME']
     config_file = os.environ['INPUT_CONFIG_FILE']
+    target_version = os.environ['INPUT_TARGET_VERSION']
 
     # Token provided from the workflow
     # Here`os.environ.get('GITHUB_TOKEN')` is deprecated.
@@ -855,6 +860,7 @@ if __name__ == '__main__':
         event_path,
         pull_request_branch,
         base_branch,
+        target_version,
         token=token
     )
     # Run Changelog CI
