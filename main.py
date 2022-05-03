@@ -1,7 +1,6 @@
 import copy
 import json
 import os
-import re
 import subprocess
 import time
 from functools import cached_property
@@ -26,7 +25,6 @@ class ChangelogCIBase:
         event_path,
         pull_request_branch,
         base_branch,
-        release_version=None,
         token=None
     ):
         self.config = config
@@ -35,7 +33,6 @@ class ChangelogCIBase:
         self.event_path = event_path
         self.pull_request_branch = pull_request_branch
         self.base_branch = base_branch
-        self.release_version = release_version
 
         self.token = token
 
@@ -66,7 +63,7 @@ class ChangelogCIBase:
     def _create_new_branch(self):
         """Create and push a new branch with the changes"""
         # Use timestamp to ensure uniqueness of the new branch
-        new_branch = f'changelog-ci-{self.release_version}-{int(time.time())}'
+        new_branch = f'changelog-ci-{int(time.time())}'
 
         subprocess.run(
             ['git', 'checkout', self.base_branch]
@@ -82,7 +79,7 @@ class ChangelogCIBase:
         """Create pull request on GitHub"""
         url = f'{self.GITHUB_API_URL}/repos/{self.repository}/pulls'
         payload = {
-            'title': f'[Changelog CI] Add Changelog for Version {self.release_version}',
+            'title': '[Changelog CI] Add Changelog',
             'head': branch_name,
             'base': self.base_branch,
             'body': body,
@@ -155,7 +152,7 @@ class ChangelogCIBase:
             [
                 'git', 'commit',
                 f'--author={self.config.git_commit_author}',
-                '-m', f'[Changelog CI] Add Changelog for Version {self.release_version}'
+                '-m', '[Changelog CI] Add Changelog'
             ]
         )
         subprocess.run(
@@ -212,7 +209,7 @@ class ChangelogCIBase:
     def get_changes_after_last_release(self):
         return NotImplemented
 
-    def parse_changelog(self, file_type, version, changes):
+    def parse_changelog(self, file_type, changes):
         return NotImplemented
 
     def run(self):
@@ -232,16 +229,10 @@ class ChangelogCIBase:
             print_message(msg, message_type='error')
             return
 
-        if (
-            not self.event_name == self.PULL_REQUEST_EVENT and
-            not self.release_version
-        ):
+        if self.event_name != self.PULL_REQUEST_EVENT:
             msg = (
                 'Skipping Changelog generation. '
-                'Changelog CI could not find the Release Version. '
-                'Changelog CI should be triggered on a pull request or '
-                '`release_version` input must be provided on the workflow. '
-                'Please Check the Documentation for more details.'
+                'Changelog CI should be triggered on a pull request'
             )
             print_message(msg, message_type='error')
             return
@@ -260,7 +251,6 @@ class ChangelogCIBase:
 
         string_data = self.parse_changelog(
             self.config.changelog_file_type,
-            self.release_version,
             changes
         )
         markdown_string_data = string_data
@@ -273,7 +263,6 @@ class ChangelogCIBase:
         ):
             markdown_string_data = self.parse_changelog(
                 self.config.MARKDOWN_FILE,
-                self.release_version,
                 changes
             )
 
@@ -312,14 +301,14 @@ class ChangelogCIPullRequest(ChangelogCIBase):
     def _get_changelog_line(self, file_type, item):
         """Generate each line of changelog"""
         if file_type == self.config.MARKDOWN_FILE:
-            changelog_line_template = "* [#{number}]({url}): {title}. Body:\n\t{body}\n"
+            changelog_line_template = "* [#{number}]({url}): {title}. Merge date:\n\t{merged_at}\n"
         else:
-            changelog_line_template = "* `#{number} <{url}>`__: {title}. Body:\n\t{body}\n"
+            changelog_line_template = "* `#{number} <{url}>`__: {title}. Merge date:\n\t{merged_at}\n"
         return changelog_line_template.format(
             number=item['number'],
             url=item['url'],
             title=item['title'],
-            body=item.get('body', "")
+            merged_at=item['merged_at']
         )
 
     def get_changes_after_last_release(self):
@@ -363,7 +352,7 @@ class ChangelogCIPullRequest(ChangelogCIBase):
                         'number': item['number'],
                         'url': item['html_url'],
                         'labels': [label['name'] for label in item['labels']],
-                        'body': item['body'],
+                        'merged_at': item['merged_at']
                     }
                     items.append(data)
             else:
@@ -382,10 +371,10 @@ class ChangelogCIPullRequest(ChangelogCIBase):
 
         return items
 
-    def parse_changelog(self, file_type, version, changes):
+    def parse_changelog(self, file_type, changes):
         """Parse the pull requests data and return a string"""
         new_changes = copy.deepcopy(changes)
-        header = f'{self.config.header_prefix} {version}'
+        header = 'Newest changes'
 
         if file_type == self.config.MARKDOWN_FILE:
             string_data = f'# {header}\n\n'
@@ -453,7 +442,6 @@ class ChangelogCIPullRequest(ChangelogCIBase):
 class ChangelogCIConfiguration:
     """Configuration class for Changelog CI"""
 
-    DEFAULT_VERSION_PREFIX = "Version:"
     DEFAULT_GROUP_CONFIG = []
     COMMIT_CHANGELOG = True
     COMMENT_CHANGELOG = False
@@ -472,7 +460,6 @@ class ChangelogCIConfiguration:
 
     def __init__(self, config_file, **other_options):
         # Initialize with default configuration
-        self.header_prefix = self.DEFAULT_VERSION_PREFIX
         self.commit_changelog = self.COMMIT_CHANGELOG
         self.comment_changelog = self.COMMENT_CHANGELOG
         self.changelog_type = self.PULL_REQUEST
@@ -802,7 +789,6 @@ if __name__ == '__main__':
     # User inputs from workflow
     changelog_filename = os.environ['INPUT_CHANGELOG_FILENAME']
     config_file = os.environ['INPUT_CONFIG_FILE']
-    release_version = os.environ['INPUT_RELEASE_VERSION']
 
     # Token provided from the workflow
     # Here`os.environ.get('GITHUB_TOKEN')` is deprecated.
@@ -859,7 +845,6 @@ if __name__ == '__main__':
         event_path,
         pull_request_branch,
         base_branch,
-        release_version=release_version,
         token=token
     )
     # Run Changelog CI
