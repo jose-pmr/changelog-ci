@@ -1,12 +1,23 @@
 import copy
 import json
 import os
+import re
 import subprocess
 import time
 from functools import cached_property
 
 import requests
 import yaml
+
+
+def remove_html_tags(text):
+    """Remove html tags from a string"""
+    clean = re.compile('<.*?>')
+    return re.sub(clean, '', text)
+
+
+def clean_duplicate_whitespace(text, indentation_level=0):
+    return re.sub(r'\n\s*\n', '\n'+'\t'*indentation_level, text)
 
 
 class ChangelogCIBase:
@@ -309,17 +320,16 @@ class ChangelogCIPullRequest(ChangelogCIBase):
             number=item['number'],
             url=item['url'],
             title=item['title'],
-            body= self._format_pr_body(item['body'])
+            body=self._format_pr_body(item['body'])
         )
 
     def _format_pr_body(self, text):
         if text:
-            text = text.replace("\n\n", "\n").replace("\n", "\n\t\t\t\t")
+            text = remove_html_tags(text)
+            text = clean_duplicate_whitespace(text)
         return f"""
         <details><summary>Comments</summary>
-            <p>
-            \t{text}
-            </p>
+            {text}
         </details>
         """
 
