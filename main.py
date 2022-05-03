@@ -535,8 +535,6 @@ class ChangelogCIConfiguration:
                 message_type='error'
             )
             return
-
-        self.validate_header_prefix()
         self.validate_commit_changelog()
         self.validate_comment_changelog()
         self.validate_changelog_type()
@@ -546,19 +544,6 @@ class ChangelogCIConfiguration:
         self.validate_changelog_filename()
         self.validate_changelog_file_type()
         self.validate_git_commit_author()
-
-    def validate_header_prefix(self):
-        """Validate and set header_prefix configuration option"""
-        header_prefix = self.user_raw_config.get('header_prefix')
-
-        if not header_prefix or not isinstance(header_prefix, str):
-            msg = (
-                '`header_prefix` was not provided or not valid, '
-                f'falling back to `{self.header_prefix}`.'
-            )
-            print_message(msg, message_type='warning')
-        else:
-            self.header_prefix = header_prefix
 
     def validate_unlabeled_group_title(self):
         """Validate and set unlabeled_group_title configuration option"""
