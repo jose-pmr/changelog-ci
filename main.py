@@ -102,22 +102,6 @@ class ChangelogCIBase:
             )
             print_message(msg, message_type='error')
 
-    def _validate_pull_request_title(self, pull_request_title):
-        """Check if changelog should be generated for this pull request"""
-        pattern = re.compile(self.config.pull_request_title_regex)
-        match = pattern.search(pull_request_title)
-
-        if match:
-            return True
-
-    def _set_release_version_from_pull_request_title(self, pull_request_title):
-        """Get version number from the pull request title"""
-        pattern = re.compile(self.config.version_regex)
-        match = pattern.search(pull_request_title)
-
-        if match:
-            self.release_version = match.group()
-
     def _get_file_mode(self):
         """Gets the mode that the changelog file should be opened in"""
         if os.path.exists(self.config.changelog_filename):
@@ -161,19 +145,8 @@ class ChangelogCIBase:
 
     def _update_changelog_file(self, string_data):
         """Write changelog to the changelog file"""
-        file_mode = self._get_file_mode()
-
-        with open(self.config.changelog_filename, file_mode) as f:
-            # read the existing data and store it in a variable
-            body = f.read()
-            # write at the top of the file
-            f.seek(0, 0)
+        with open(self.config.changelog_filename, 'w+') as f:
             f.write(string_data)
-
-            if body:
-                # re-write the existing data
-                f.write('\n\n')
-                f.write(body)
 
     def _commit_changelog(self, branch):
         """Commit Changelog"""
@@ -276,43 +249,8 @@ class ChangelogCIBase:
         pull_request_number = None
 
         if self.event_name == self.PULL_REQUEST_EVENT:
-            title, number = self._get_pull_request_title_and_number(event_path)
-            pull_request_title = title
+            _, number = self._get_pull_request_title_and_number(event_path)
             pull_request_number = number
-
-            if not self._validate_pull_request_title(pull_request_title):
-                # if pull request regex doesn't match then exit
-                # and don't generate changelog
-                msg = (
-                    f'The title of the pull request did not match. '
-                    f'Regex tried: "{self.config.pull_request_title_regex}", '
-                    f'Aborting Changelog Generation.'
-                )
-                print_message(msg, message_type='error')
-                return
-
-            self._set_release_version_from_pull_request_title(
-                pull_request_title=pull_request_title
-            )
-
-        if not self.release_version:
-            # if the pull request title is not valid, exit the method
-            # It might happen if the pull request is not meant to be release
-            # or the title was not accurate.
-            if self.event_name == self.PULL_REQUEST_EVENT:
-                msg = (
-                    f'Could not find matching version number from pull request title. '
-                    f'Regex tried: {self.config.version_regex} '
-                    f'Aborting Changelog Generation'
-                )
-            else:
-                msg = (
-                    '`release_version` input must be provided to generate Changelog. '
-                    'Please Check the Documentation for more details. '
-                    'Aborting Changelog Generation'
-                )
-            print_message(msg, message_type='error')
-            return
 
         changes = self.get_changes_after_last_release()
 
@@ -424,7 +362,8 @@ class ChangelogCIPullRequest(ChangelogCIBase):
                         'title': item['title'],
                         'number': item['number'],
                         'url': item['html_url'],
-                        'labels': [label['name'] for label in item['labels']]
+                        'labels': [label['name'] for label in item['labels']],
+                        'body': item['body'],
                     }
                     items.append(data)
             else:
@@ -511,104 +450,9 @@ class ChangelogCIPullRequest(ChangelogCIBase):
         return string_data
 
 
-class ChangelogCICommitMessage(ChangelogCIBase):
-    """Generates, commits and/or comments changelog using commit messages"""
-
-    def _get_changelog_line(self, file_type, item):
-        """Generate each line of changelog"""
-        if file_type == self.config.MARKDOWN_FILE:
-            changelog_line_template = "* [{sha}]({url}): {message}\n"
-        else:
-            changelog_line_template = "* `{sha} <{url}>`__: {message}\n"
-
-        return changelog_line_template.format(
-            sha=item['sha'][:7],
-            url=item['url'],
-            message=item['message']
-        )
-
-    def get_changes_after_last_release(self):
-        """Get all the merged pull request after latest release"""
-        url = '{base_url}/repos/{repo_name}/commits'.format(
-            base_url=self.GITHUB_API_URL,
-            repo_name=self.repository
-        )
-        previous_release_date = self._get_latest_release_date()
-
-        if previous_release_date:
-            url = f'{url}?since={previous_release_date}'
-
-        items = []
-
-        response = requests.get(url, headers=self._get_request_headers)
-
-        if response.status_code == 200:
-            response_data = response.json()
-
-            if len(response_data) > 0:
-                for item in response_data:
-                    message = item['commit']['message']
-                    # Exclude merge commit
-                    if not (
-                        message.startswith('Merge pull request #') or
-                        message.startswith('Merge branch')
-                    ):
-                        data = {
-                            'sha': item['sha'],
-                            'message': message,
-                            'url': item['html_url']
-                        }
-                        items.append(data)
-                    else:
-                        print_message(f'Skipping Merge Commit "{message}"')
-            else:
-                msg = (
-                    f'There was no commit '
-                    f'made on {self.repository} after last release.'
-                )
-                print_message(msg, message_type='error')
-        else:
-            msg = (
-                f'Could not get commits for '
-                f'{self.repository} from GitHub API. '
-                f'response status code: {response.status_code}'
-            )
-            print_message(msg, message_type='error')
-
-        return items
-
-    def parse_changelog(self, file_type, version, changes):
-        """Parse the commit data and return a string"""
-        new_changes = copy.deepcopy(changes)
-        header = f'{self.config.header_prefix} {version}'
-
-        if file_type == self.config.MARKDOWN_FILE:
-            string_data = f'# {header}\n\n'
-        else:
-            string_data = (
-                f"{header}\n{'=' * len(header)}\n\n"
-            )
-        string_data += ''.join(
-            [self._get_changelog_line(file_type, item) for item in new_changes]
-        )
-
-        return string_data
-
-
 class ChangelogCIConfiguration:
     """Configuration class for Changelog CI"""
 
-    # The regular expression used to extract semantic versioning is a
-    # slightly less restrictive modification of
-    # the following regular expression
-    # https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
-    DEFAULT_SEMVER_REGEX = (
-        r"v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.?(0|[1-9]\d*)?(?:-(("
-        r"?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|["
-        r"1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(["
-        r"0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?"
-    )
-    DEFAULT_PULL_REQUEST_TITLE_REGEX = r"^(?i:release)"
     DEFAULT_VERSION_PREFIX = "Version:"
     DEFAULT_GROUP_CONFIG = []
     COMMIT_CHANGELOG = True
@@ -631,8 +475,6 @@ class ChangelogCIConfiguration:
         self.header_prefix = self.DEFAULT_VERSION_PREFIX
         self.commit_changelog = self.COMMIT_CHANGELOG
         self.comment_changelog = self.COMMENT_CHANGELOG
-        self.pull_request_title_regex = self.DEFAULT_PULL_REQUEST_TITLE_REGEX
-        self.version_regex = self.DEFAULT_SEMVER_REGEX
         self.changelog_type = self.PULL_REQUEST
         self.group_config = self.DEFAULT_GROUP_CONFIG
         self.include_unlabeled_changes = self.INCLUDE_UNLABELED_CHANGES
@@ -710,8 +552,6 @@ class ChangelogCIConfiguration:
         self.validate_header_prefix()
         self.validate_commit_changelog()
         self.validate_comment_changelog()
-        self.validate_pull_request_title_regex()
-        self.validate_version_regex()
         self.validate_changelog_type()
         self.validate_group_config()
         self.validate_include_unlabeled_changes()
@@ -786,54 +626,6 @@ class ChangelogCIConfiguration:
             print_message(msg, message_type='warning')
         else:
             self.comment_changelog = bool(comment_changelog)
-
-    def validate_pull_request_title_regex(self):
-        """Validate and set pull_request_title_regex configuration option"""
-        pull_request_title_regex = self.user_raw_config.get(
-            'pull_request_title_regex'
-        )
-
-        if not pull_request_title_regex:
-            msg = (
-                '`pull_request_title_regex` was not provided, '
-                f'Falling back to {self.pull_request_title_regex}.'
-            )
-            print_message(msg, message_type='warning')
-            return
-
-        try:
-            # This will raise an error if the provided regex is not valid
-            re.compile(pull_request_title_regex)
-            self.pull_request_title_regex = pull_request_title_regex
-        except Exception:
-            msg = (
-                '`pull_request_title_regex` is not valid, '
-                f'Falling back to {self.pull_request_title_regex}.'
-            )
-            print_message(msg, message_type='error')
-
-    def validate_version_regex(self):
-        """Validate and set validate_version_regex configuration option"""
-        version_regex = self.user_raw_config.get('version_regex')
-
-        if not version_regex:
-            msg = (
-                '`version_regex` was not provided, '
-                f'Falling back to {self.version_regex}.'
-            )
-            print_message(msg, message_type='warning')
-            return
-
-        try:
-            # This will raise an error if the provided regex is not valid
-            re.compile(version_regex)
-            self.version_regex = version_regex
-        except Exception:
-            msg = (
-                '`version_regex` is not valid, '
-                f'Falling back to {self.version_regex}.'
-            )
-            print_message(msg, message_type='warning')
 
     def validate_changelog_type(self):
         """Validate and set changelog_type configuration option"""
@@ -994,7 +786,6 @@ def display_whats_new():
 
 CHANGELOG_CI_CLASSES = {
     ChangelogCIConfiguration.PULL_REQUEST: ChangelogCIPullRequest,
-    ChangelogCIConfiguration.COMMIT: ChangelogCICommitMessage
 }
 
 

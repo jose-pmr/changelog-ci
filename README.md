@@ -17,14 +17,14 @@ The workflow can be configured to perform **any (or all)** of the following acti
 
 * For `pull_request` event:
   * **Generates** changelog using **Pull Request Titles** or **Commit Messages** made after the last release.
-  * **Prepends** the generated changelog to the `CHANGELOG.md`/`CHANGELOG.rst` file.
+  * **Writes** the generated changelog to the `CHANGELOG.md`/`CHANGELOG.rst` file.
   * Then **Commits** the modified `CHANGELOG.md`/`CHANGELOG.rst` file to the release pull request branch.
   * Adds a **Comment** on the release pull request with the generated changelog.
 
 
 * For other events:
   * **Generate** changelog using **Pull Request Title** or **Commit Messages** made after the last release.
-  * **Prepends** the generated changelog to the `CHANGELOG.md`/`CHANGELOG.rst` file.
+  * **Writes** the generated changelog to the `CHANGELOG.md`/`CHANGELOG.rst` file.
   * Then Creates a **Pull Request** with the `CHANGELOG.md`/`CHANGELOG.rst` file changes.
 
 ## How Does It Work:
@@ -42,12 +42,6 @@ by a `pull_request` event, the changes are **committed** and/or **commented** to
 otherwise a new **Pull Request** is created with the changes.
 
 ## Usage:
-
-* To use this Action on a `pull_request` event, The pull **request title** must match with the
-default `pull_request_title_regex` or the user-provided `pull_request_title_regex` from the config file.
-
-* To use this Action on any other events, You must provide `release_version` as an input to the workflow.
-It can be provided using `workflow_dispatch` events `input` option or from any other sources.
 
 **Basic Integration (for `pull_request` event):** To integrate `Changelog CI` on your repositories, Put
 `.github/workflows/changelog-ci.yml` file in your repository with the following content:
@@ -108,7 +102,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run Changelog CI
-        uses: saadmk11/changelog-ci@v1.0.0
+        uses: jose-pmr/changelog-ci@v1.1.1
         with:
           # Optional, you can provide any name for your changelog file,
           # We currently support Markdown (.md) and reStructuredText (.rst) files
@@ -178,8 +172,6 @@ These are the options that can be provided on the `config_file`.
 | `header_prefix` | No | The prefix before the version number. e.g. `version:` in `Version: 1.0.2` | `Version:` |  |
 | `commit_changelog` | No | If it's set to `true` then Changelog CI will commit the changes to the release pull request. (A pull Request will be created with the changes if the workflow run is not triggered by a `pull_request` event) | `true` | `true` or `false` |
 | `comment_changelog` | No | If it's set to `true` then Changelog CI will comment the generated changelog on the release pull request. (Only applicable for workflow runs triggered by a `pull_request` event) | `false` | `true` or `false` |
-| `pull_request_title_regex` | No | If the pull request title matches with this `regex` Changelog CI will generate changelog for it. Otherwise, it will skip the changelog generation. (Only applicable for workflow runs triggered by a `pull_request` event) | `^(?i:release)` |  |
-| `version_regex` | No | This `regex` is used to find the version name/number (e.g. `1.0.2`, `v2.0.2`) from the pull request title. in case of no match, changelog generation will be skipped. (Only applicable for workflow runs triggered by a `pull_request` event) | [`SemVer`](https://regex101.com/r/Qayx0q/1/) |  |
 | `group_config` | No | By adding this you can group changelog items by your repository labels with custom titles. | `null` |  |
 | `include_unlabeled_changes` | No | if set to `false` the generated changelog will not contain the Pull Requests that are unlabeled or the labels are not on the `group_config` option. This option will only be used if the `group_config` option is added and the `changelog_type` option is set to `pull_request`. | `true` | `true` or `false` |
 | `unlabeled_group_title` | No | This option will set the title of the unlabeled changes. This option will only be used if the `include_unlabeled_changes` option is set to `true`, `group_config` option is added and the `changelog_type` option is set to `pull_request`. | `Other Changes` |  |
