@@ -327,7 +327,7 @@ class ChangelogCIPullRequest(ChangelogCIBase):
     def _format_pr_body(self, text):
         if text:
             text = remove_html_tags(text)
-            text = clean_duplicate_whitespace(text)
+            text = clean_duplicate_whitespace(text, 3)
         return f"""
         <details><summary>Comments</summary>
             {text}
