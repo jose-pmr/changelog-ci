@@ -17,7 +17,8 @@ def remove_html_tags(text):
 
 
 def clean_duplicate_whitespace(text, indentation_level=0):
-    return re.sub(r'\n\s*\n', '\n'+'\t'*indentation_level, text)
+    clean = re.sub(r'\n\s*\n', '\n', text)
+    return clean.replace('\n', '\n'+'\t'*indentation_level)
 
 
 class ChangelogCIBase:
