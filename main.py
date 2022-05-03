@@ -209,7 +209,7 @@ class ChangelogCIBase:
     def get_changes_after_last_release(self):
         return NotImplemented
 
-    def parse_changelog(self, file_type, changes):
+    def parse_changelog(self, file_type, changes, pr_number):
         return NotImplemented
 
     def run(self):
@@ -240,8 +240,7 @@ class ChangelogCIBase:
         pull_request_number = None
 
         if self.event_name == self.PULL_REQUEST_EVENT:
-            _, number = self._get_pull_request_title_and_number(event_path)
-            pull_request_number = number
+            _, pull_request_number = self._get_pull_request_title_and_number(event_path)
 
         changes = self.get_changes_after_last_release()
 
@@ -251,7 +250,8 @@ class ChangelogCIBase:
 
         string_data = self.parse_changelog(
             self.config.changelog_file_type,
-            changes
+            changes,
+            pull_request_number
         )
         markdown_string_data = string_data
 
@@ -263,7 +263,8 @@ class ChangelogCIBase:
         ):
             markdown_string_data = self.parse_changelog(
                 self.config.MARKDOWN_FILE,
-                changes
+                changes,
+                pull_request_number
             )
 
         if self.config.commit_changelog:
@@ -301,9 +302,9 @@ class ChangelogCIPullRequest(ChangelogCIBase):
     def _get_changelog_line(self, file_type, item):
         """Generate each line of changelog"""
         if file_type == self.config.MARKDOWN_FILE:
-            changelog_line_template = "* [#{number}]({url}): {title}."
+            changelog_line_template = "* [#{number}]({url}): {title}\n"
         else:
-            changelog_line_template = "* `#{number} <{url}>`__: {title}."
+            changelog_line_template = "* `#{number} <{url}>`__: {title}\n"
         return changelog_line_template.format(
             number=item['number'],
             url=item['url'],
@@ -369,10 +370,11 @@ class ChangelogCIPullRequest(ChangelogCIBase):
 
         return items
 
-    def parse_changelog(self, file_type, changes):
+    def parse_changelog(self, file_type, changes, pr_number):
         """Parse the pull requests data and return a string"""
         new_changes = copy.deepcopy(changes)
-        header = 'Newest changes'
+        new_changes = sorted(new_changes,key=lambda x: -x['number'])
+        header = f'Newest changes from PR: {pr_number}'
 
         if file_type == self.config.MARKDOWN_FILE:
             string_data = f'# {header}\n\n'
