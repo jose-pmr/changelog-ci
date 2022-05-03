@@ -316,7 +316,7 @@ class ChangelogCIPullRequest(ChangelogCIBase):
         return f"""
         <details><summary>Comments</summary>
             <p>
-            {text}
+            \{text}
             </p>
         </details>
         """
