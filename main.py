@@ -301,14 +301,13 @@ class ChangelogCIPullRequest(ChangelogCIBase):
     def _get_changelog_line(self, file_type, item):
         """Generate each line of changelog"""
         if file_type == self.config.MARKDOWN_FILE:
-            changelog_line_template = "* [#{number}]({url}): {title}. Merge date:\n\t{merged_at}\n"
+            changelog_line_template = "* [#{number}]({url}): {title}."
         else:
-            changelog_line_template = "* `#{number} <{url}>`__: {title}. Merge date:\n\t{merged_at}\n"
+            changelog_line_template = "* `#{number} <{url}>`__: {title}."
         return changelog_line_template.format(
             number=item['number'],
             url=item['url'],
-            title=item['title'],
-            merged_at=item['merged_at']
+            title=item['title']
         )
 
     def get_changes_after_last_release(self):
@@ -351,8 +350,7 @@ class ChangelogCIPullRequest(ChangelogCIBase):
                         'title': item['title'],
                         'number': item['number'],
                         'url': item['html_url'],
-                        'labels': [label['name'] for label in item['labels']],
-                        'merged_at': item['merged_at']
+                        'labels': [label['name'] for label in item['labels']]
                     }
                     items.append(data)
             else:
