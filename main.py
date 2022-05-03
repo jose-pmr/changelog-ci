@@ -309,7 +309,7 @@ class ChangelogCIPullRequest(ChangelogCIBase):
             number=item['number'],
             url=item['url'],
             title=item['title'],
-            body=item['body']
+            body= self._format_pr_body(item['body'])
         )
 
     def _format_pr_body(self, text):
@@ -364,7 +364,7 @@ class ChangelogCIPullRequest(ChangelogCIBase):
                         'labels': [label['name'] for label in item['labels']],
                         "body": item['body'],
                     }
-                    if item.get('user', {})['type'] != "bot":
+                    if item.get('user', {})['type'] == "User":
                         items.append(data)
             else:
                 msg = (
