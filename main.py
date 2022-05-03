@@ -302,14 +302,24 @@ class ChangelogCIPullRequest(ChangelogCIBase):
     def _get_changelog_line(self, file_type, item):
         """Generate each line of changelog"""
         if file_type == self.config.MARKDOWN_FILE:
-            changelog_line_template = "* [#{number}]({url}): {title}\n"
+            changelog_line_template = "* [#{number}]({url}): {title}\n\t{body}\n"
         else:
-            changelog_line_template = "* `#{number} <{url}>`__: {title}\n"
+            changelog_line_template = "* `#{number} <{url}>`__: {title}\n\t{body}\n"
         return changelog_line_template.format(
             number=item['number'],
             url=item['url'],
-            title=item['title']
+            title=item['title'],
+            body=item['body']
         )
+
+    def _format_pr_body(self, text):
+        return f"""
+        <details><summary>Comments</summary>
+            <p>
+            {text}
+            </p>
+        </details>
+        """
 
     def get_changes_after_last_release(self):
         """Get all the merged pull request after latest release"""
@@ -351,9 +361,11 @@ class ChangelogCIPullRequest(ChangelogCIBase):
                         'title': item['title'],
                         'number': item['number'],
                         'url': item['html_url'],
-                        'labels': [label['name'] for label in item['labels']]
+                        'labels': [label['name'] for label in item['labels']],
+                        "body": item['body'],
                     }
-                    items.append(data)
+                    if item.get('user', {})['type'] != "bot":
+                        items.append(data)
             else:
                 msg = (
                     f'There was no pull request '
