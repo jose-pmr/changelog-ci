@@ -314,7 +314,7 @@ class ChangelogCIPullRequest(ChangelogCIBase):
 
     def _format_pr_body(self, text):
         if text:
-            text = text.replace("\n\n", "\n").replace("\n", "\n\t")
+            text = text.replace("\n\n", "\n").replace("\n", "\n\t\t\t\t")
         return f"""
         <details><summary>Comments</summary>
             <p>
