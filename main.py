@@ -400,7 +400,7 @@ class ChangelogCIPullRequest(ChangelogCIBase):
         new_changes = copy.deepcopy(changes)
         new_changes = sorted(new_changes,key=lambda x: -x['number'])
         if self.target_version:
-            header = f"Version {self.target_version}"
+            header = self.target_version.replace("v", "")
         elif self.pr_number:
             header = f'Pull request: {self.pr_number}'
         else:
