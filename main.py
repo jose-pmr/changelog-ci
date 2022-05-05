@@ -283,7 +283,7 @@ class ChangelogCIBase:
 
         if self.config.commit_changelog:
             self._update_changelog_file(string_data)
-            if self.event_name in [self.PULL_REQUEST_EVENT, self.WORKFLOW_DISPATCH_EVENT]:
+            if self.event_name == self.PULL_REQUEST_EVENT:
                 print_message('Commit Changelog', message_type='group')
                 self._commit_changelog(self.pull_request_branch)
                 print_message('', message_type='endgroup')
