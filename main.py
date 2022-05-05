@@ -39,7 +39,8 @@ class ChangelogCIBase:
         pull_request_branch,
         base_branch,
         target_version,
-        token=None
+        token=None,
+        pr_number=None
     ):
         self.config = config
         self.repository = repository
@@ -49,7 +50,7 @@ class ChangelogCIBase:
         self.base_branch = base_branch
         self.target_version = target_version
         self.token = token
-        self.pr_number = None
+        self.pr_number = pr_number
 
     @staticmethod
     def _get_pull_request_title_and_number(event_path):
@@ -244,11 +245,11 @@ class ChangelogCIBase:
             print_message(msg, message_type='error')
             return
 
-        if self.event_name != self.PULL_REQUEST_EVENT:
+        if self.event_name not in [self.PULL_REQUEST_EVENT, self.WORKFLOW_DISPATCH_EVENT]:
             msg = (
                 'Skipping Changelog generation. '
                 'Changelog CI should be triggered on a pull request. '
-                f'Event name recieved: {self.event_name}'
+                f'Event name received: {self.event_name}'
             )
             print_message(msg, message_type='error')
             return
@@ -282,7 +283,7 @@ class ChangelogCIBase:
 
         if self.config.commit_changelog:
             self._update_changelog_file(string_data)
-            if self.event_name == self.PULL_REQUEST_EVENT:
+            if self.event_name in [self.PULL_REQUEST_EVENT, self.WORKFLOW_DISPATCH_EVENT]:
                 print_message('Commit Changelog', message_type='group')
                 self._commit_changelog(self.pull_request_branch)
                 print_message('', message_type='endgroup')
@@ -298,14 +299,14 @@ class ChangelogCIBase:
         if self.config.comment_changelog:
             print_message('Comment Changelog', message_type='group')
 
-            if not self.event_name == self.PULL_REQUEST_EVENT:
+            if self.event_name in [self.PULL_REQUEST_EVENT, self.WORKFLOW_DISPATCH_EVENT]:
+                self._comment_changelog(markdown_string_data, self.pr_number)
+            else:
                 msg = (
                     '`comment_changelog` can only be used if Changelog CI is triggered on a pull request. '
                     'Please Check the Documentation for more details.'
                 )
                 print_message(msg, message_type='error')
-            else:
-                self._comment_changelog(markdown_string_data, pull_request_number)
             print_message('', message_type='endgroup')
 
 
@@ -806,6 +807,7 @@ if __name__ == '__main__':
     changelog_filename = os.environ['INPUT_CHANGELOG_FILENAME']
     config_file = os.environ['INPUT_CONFIG_FILE']
     target_version = os.environ['INPUT_TARGET_VERSION']
+    pr_number = os.environ['INPUT_PR_NUMBER']
 
     # Token provided from the workflow
     # Here`os.environ.get('GITHUB_TOKEN')` is deprecated.
@@ -863,7 +865,8 @@ if __name__ == '__main__':
         pull_request_branch,
         base_branch,
         target_version,
-        token=token
+        token=token,
+        pr_number=pr_number
     )
     # Run Changelog CI
     ci.run()
