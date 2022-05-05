@@ -247,7 +247,8 @@ class ChangelogCIBase:
         if self.event_name != self.PULL_REQUEST_EVENT:
             msg = (
                 'Skipping Changelog generation. '
-                'Changelog CI should be triggered on a pull request'
+                'Changelog CI should be triggered on a pull request. '
+                f'Event name recieved: {self.event_name}'
             )
             print_message(msg, message_type='error')
             return
