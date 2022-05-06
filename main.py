@@ -283,7 +283,7 @@ class ChangelogCIBase:
 
         if self.config.commit_changelog:
             self._update_changelog_file(string_data)
-            if self.event_name == self.PULL_REQUEST_EVENT:
+            if self.event_name in [self.PULL_REQUEST_EVENT, self.WORKFLOW_DISPATCH_EVENT]:
                 print_message('Commit Changelog', message_type='group')
                 self._commit_changelog(self.pull_request_branch)
                 print_message('', message_type='endgroup')
@@ -807,6 +807,7 @@ if __name__ == '__main__':
     changelog_filename = os.environ['INPUT_CHANGELOG_FILENAME']
     config_file = os.environ['INPUT_CONFIG_FILE']
     target_version = os.environ['INPUT_TARGET_VERSION']
+    target_branch = os.environ.get('INPUT_TARGET_BRANCH', pull_request_branch)
     pr_number = os.environ['INPUT_PR_NUMBER']
 
     # Token provided from the workflow
@@ -862,7 +863,7 @@ if __name__ == '__main__':
         repository,
         event_name,
         event_path,
-        pull_request_branch,
+        target_branch,
         base_branch,
         target_version,
         token=token,
