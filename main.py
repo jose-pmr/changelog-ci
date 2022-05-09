@@ -827,7 +827,7 @@ if __name__ == '__main__':
         ]
     )
     subprocess.run(['git', 'checkout', target_branch])
-    subprocess.run(['git', 'pull', target_branch])
+    subprocess.run(['git', 'pull', 'origin', target_branch])
 
     print_message('', message_type='endgroup')
 
