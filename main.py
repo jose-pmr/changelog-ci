@@ -808,7 +808,7 @@ if __name__ == '__main__':
     config_file = os.environ['INPUT_CONFIG_FILE']
     target_version = os.environ['INPUT_TARGET_VERSION']
     target_branch = os.environ.get('INPUT_TARGET_BRANCH', pull_request_branch)
-    pr_number = os.environ['INPUT_PR_NUMBER']
+    pr_number = os.environ.get('INPUT_PR_NUMBER')
 
     # Token provided from the workflow
     # Here`os.environ.get('GITHUB_TOKEN')` is deprecated.
